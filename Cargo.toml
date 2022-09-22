@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 unicode-segmentation = "1.9.0"
 regex = "1"
+unicode-xid = "0.2.4"

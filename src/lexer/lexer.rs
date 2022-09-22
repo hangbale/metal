@@ -28,9 +28,6 @@ impl Lexer {
             column: 0
         }
     }
-    pub fn set_state (&mut self, state: State) {
-        self.state = state;
-    }
     pub fn forwrad (&mut self) {
         match self.state {
             State::String => {
@@ -47,7 +44,7 @@ impl Lexer {
                         }
                     } else {
                         self.state = State::Start;
-                        let t_type = token::get_strings_type(&self.cache);
+                        let t_type = token::get_type_from_string(&self.cache);
                         self.accept(Token {
                             value: self.cache.clone(),
                             category: t_type,
