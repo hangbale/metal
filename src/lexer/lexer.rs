@@ -1,5 +1,6 @@
-use crate::lexer::token::{self, Token, TokenType};
+use crate::lexer::token::*;
 use crate::input::Code;
+use crate::lexer::error::LexerError;
 #[derive(Debug, PartialEq)]
 enum State {
     Start,
@@ -8,145 +9,125 @@ enum State {
     Punctuator
 }
 
-pub struct Lexer {
+pub struct Lexer<'a> {
     state: State,
     list: Vec<Token>,
-    code: Code,
+    code: Code<'a>,
     cache: String,
     line: u64,
     column: u64
 }
 
-impl Lexer {
-    pub fn new () -> Self {
+impl<'a> Lexer<'a> {
+    pub fn new (code: &'a str) -> Self {
         Self {
             state: State::Start,
-            code: Code::new(),
+            code: Code::new(code),
             list: vec![],
-            cache: String::from(""),
+            cache: String::new(),
             line: 0,
             column: 0
         }
     }
-    pub fn forwrad (&mut self) {
-        match self.state {
-            State::String => {
-                while let Some(char) = self.code.peek() {
-                    let chars: Vec<char> = char.chars().collect();
-                    if chars.len() > 1 || token::is_alphabetic(chars[0]) {
-                        self.cache.push_str(&char);
-                        let char_o = self.code.next();
-                        if let Some(char_r) = char_o {
-                            if self.line == 0 {
-                                self.line = char_r.line;
-                                self.column = char_r.column;
-                            }
-                        }
-                    } else {
-                        self.state = State::Start;
-                        let t_type = token::get_type_from_string(&self.cache);
-                        self.accept(Token {
-                            value: self.cache.clone(),
-                            category: t_type,
-                            line: self.line,
-                            column: self.column
-                        });
-                        self.cache = String::from("");
-                        self.line = 0;
-                        self.column = 0;
-                        break;
-                    }
-                }
-            }
-            State::Number => {
-                while let Some(char) = self.code.peek() {
-                    if token::is_numeric(&char) {
-                        self.cache.push_str(&char);
-                        let char_o = self.code.next();
-                        if let Some(char_r) = char_o {
-                            if self.line == 0 {
-                                self.line = char_r.line;
-                                self.column = char_r.column;
-                            }
-                        }
-                    } else {
-                        self.state = State::Start;
-                        self.accept(Token {
-                            value: self.cache.clone(),
-                            category: TokenType::NUMBER_LITERAL,
-                            line: self.line,
-                            column: self.column
-                        });
-                        self.cache = String::from("");
-                        self.line = 0;
-                        self.column = 0;
-                        break;
-                    }
-                }
-            }
-            State::Punctuator => {
-                while let Some(char) = self.code.peek() {
-                    if token::is_punctuator(&char) {
-                        self.cache.push_str(&char);
-                        let char_o = self.code.next();
-                        if let Some(char_r) = char_o {
-                            if self.line == 0 {
-                                self.line = char_r.line;
-                                self.column = char_r.column;
-                            }
-                        }
-                    } else {
-                        self.state = State::Start;
-                        let t_type = token::get_punctuator_type(&self.cache);
-                        self.accept(Token {
-                            value: self.cache.clone(),
-                            category: t_type,
-                            line: self.line,
-                            column: self.column
-                        });
-                        self.cache = String::from("");
-                        self.line = 0;
-                        self.column = 0;
-                        break;
-                    }
-                }
-            }
-            _ => {
-                // self.start();
-            }
+    pub fn print (&mut self) {
+        for _ in 0..10 {
+            let t = self.code.peek();
+            println!("{:?}", t);
         }
-        if self.state == State::Start {
-            self.start();
-        }
-        
     }
-    pub fn start (&mut self) {
-
-        // println!("{:?}", self.code);
-        if let Some(start_char) = self.code.peek() {
-            let chars: Vec<char> = start_char.chars().collect();
-            if chars.len() > 1 {
-                self.state = State::String;
-            } else {
-                if token::is_punctuator(&start_char) {
-                    self.state = State::Punctuator;
-                } else if token::is_alphabetic(chars[0]) {
-                    self.state = State::String;
-                } else if token::is_numeric(&start_char) {
-                    self.state = State::Number;
+    pub fn advance (&mut self) {
+        while let Some(ch) = self.code.peek() {
+            match ch {
+                'a'..='z' | 'A'..='Z' | '_' | '$' => {
+                    println!("in id");
+                    self.handle_identifier();
+                }
+                _ => {
+                    break;
+                    // Err(LexerError::IllegalCharacter);
+                }
+            }
+        }
+        println!("{}", self.cache);
+        // Ok()
+    }
+    pub fn handle_identifier (&mut self) -> Result<String, LexerError> {
+        while let Some(c) = &self.code.peek() {
+            let nt = *c;
+            println!("{}", nt);
+            if !is_identifier_continue(nt) {
+                if nt == '\\' {
+                    let v = self.handle_unicode_seq()?;
+                    if !is_identifier_continue(v) {
+                        return Err(LexerError::InvalidUnicodeSequence);
+                    }
+                    continue;
                 } else {
-                    // other chars, unhandled now
-                    self.code.next();
+                    break;
                 }
+            } else {
+                println!("normal");
+                self.accept(nt);
+                self.code.next();
             }
-            self.forwrad()
-        } else {
-            println!("lexer ending");
-            println!("{:#?}", self.list);
         }
-        
+        Ok(self.token_finishup())
     }
-    pub fn accept (&mut self, tk: Token) {
-        self.list.push(tk);
+    pub fn token_finishup (&mut self) -> String {
+        return self.cache.clone();
+    }
+    pub fn handle_unicode_seq (&mut self) -> Result<char, LexerError> {
+        if let Some(next) = self.code.next() {
+            if next == 'u' {
+                match self.code.peek() {
+                    Some('{') => {
+                        return self.try_code_point();
+                    }
+                    Some(_) => {
+                        return self.try_four_hex_num();
+                    }
+                    None => {
+                        return Err(LexerError::InvalidUnicodeSequence);
+                    }
+                }
+            } else {
+                Err(LexerError::InvalidUnicodeSequence)
+            }
+        } else {
+            Err(LexerError::InvalidUnicodeSequence)
+        }
+    }
+    pub fn try_four_hex_num (&mut self) -> Result<char, LexerError>{
+        let mut v: u32 = 0;
+        for _ in 0..4 {
+            let nt = self.code.next();
+            if let Some(ch) = nt {
+                let dg = hex_char_to_digit(ch)?;
+                v = v << 4 | dg;
+            } else {
+                return Err(LexerError::InvalidUnicodeSequence);
+            }
+        }
+        digit_to_char(v)
+    }
+    pub fn try_code_point (&mut self) -> Result<char, LexerError> {
+        let mut v: u32 = 0;
+        loop {
+            let n = match self.code.peek() {
+                Some(c @ '0'..='9') => c as u32 - '0' as u32,
+                Some(c @ 'a'..='f') => 10 + (c as u32 - 'a' as u32),
+                Some(c @ 'A'..='F') => 10 + (c as u32 - 'A' as u32),
+                None => {
+                    return Err(LexerError::InvalidUnicodeSequence)
+                },
+                Some(_) => break,
+            };
+            self.code.next();
+            v = v << 4 | n;
+        }
+        digit_to_char(v)
+    }
+    pub fn accept (&mut self, tk: char) {
+        self.cache.push(tk);
     }
 }

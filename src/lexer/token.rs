@@ -1,5 +1,6 @@
 use regex::Regex;
 use unicode_xid::UnicodeXID;
+use crate::lexer::error::LexerError;
 #[derive(Debug)]
 pub enum TokenType {
     // keywords
@@ -77,6 +78,14 @@ pub const ZWJ: char = '\u{200d}';
 // ZERO WIDTH NO-BREAK SPACE, a whitespace
 pub const ZWNBSP: char = '\u{feff}';
 
+// whitespace
+pub const TAB: char = '\u{9}';
+pub const SPACE: char = '\u{20}';
+const NBSP: char = '\u{a0}';
+
+// line ending
+pub const LF: char = '\u{a}';
+pub const CR: char = '\u{d}';
 
 #[derive(Debug)]
 pub struct Token {
@@ -128,41 +137,38 @@ pub fn is_identifier_start (s: char) -> bool {
         return UnicodeXID::is_xid_start(s);
     }
 }
+pub fn is_identifier_continue(c: char) -> bool {
+    if c.is_ascii() {
+        c == '$' || c == '_' || c.is_ascii_alphanumeric()
+    } else {
+        UnicodeXID::is_xid_continue(c) || c == ZWNJ || c == ZWJ
+    }
+}
+
+pub fn is_unicode_seq_start (s: char) -> bool {
+    return s == '\\';
+}
 // an unicode sequence identifier
 // let \u0061 = 'foobar'; let \u{0061} = 'foobar';let \u{0061}name = 'foobar'
 // read 4 chars next '\u' or '\u{' as a decimal number, then translate them to a char and check its validity
-pub fn try_unicode_sequene_identifier() -> bool {
-    let four_d = four_hex_to_digit();
-    let ch_r = digit_to_char(four_d);
-    if let Ok(ch) = ch_r {
-        is_identifier_start(ch)
-    } else {
-        false
-    }
-}
-fn hex_char_to_digit (s: char) -> Result<u32, String> {
+
+pub fn hex_char_to_digit (s: char) -> Result<u32, LexerError> {
     match s {
         c @ '0'..='9' => Ok(c as u32 - '0' as u32),
         c @ 'a'..='f' => Ok(10 + (c as u32 - 'a' as u32)),
         c @ 'A'..='F' => Ok(10 + (c as u32 - 'A' as u32)),
-        _ => Err("parse error".to_string()) // TODO: a custom parse error
+        _ => Err(LexerError::InvalidHexNumber)
     }
 }
-pub fn four_hex_to_digit() -> u32 {
-    let mut v:u32 = 0;
-    for i in 0..4 {
-        let d = hex_char_to_digit(); // todo
-        if let Ok(dv) = d {
-            v = (v << 4) | d;
-        }
+
+pub fn digit_to_char (s: u32) -> Result<char, LexerError> {
+    if s > 0x10FFFF {
+        return Err(LexerError::UnicodeOverfow);
     }
-    v
-}
-fn digit_to_char (s: u32) -> Result<char, String> {
-    if s > 0xd800 && s < 0xdfff {
-        return Err("surrogate code points".to_string());
+    if s >= 0xd800 && s <= 0xdfff {
+        return Err(LexerError::UnicodeSurrogateCodePoint);
     }
-    return char::try_from(s).map_err(|e| String::from("invalid unicode sequence"));
+    char::try_from(s).map_err(|e| LexerError::InvalidUnicodeSequence)
 }
 pub fn get_type_from_string (s: &str) -> TokenType {
     match s {
