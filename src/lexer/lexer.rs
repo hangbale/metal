@@ -5,7 +5,6 @@ use crate::lexer::error::LexerError;
 
 
 pub struct Lexer<'a> {
-    list: Vec<Token>,
     code: Code<'a>,
     cache: String,
     current: Option<Token>,
@@ -17,7 +16,6 @@ impl<'a> Lexer<'a> {
     pub fn new (code: &'a str) -> Self {
         Self {
             code: Code::new(code),
-            list: vec![],
             cache: String::new(),
             current: None,
             line: 0,

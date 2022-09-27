@@ -173,7 +173,7 @@ pub fn digit_to_char (s: u32) -> Result<char, LexerError> {
     char::try_from(s).map_err(|e| LexerError::InvalidUnicodeSequence)
 }
 pub fn try_keyword (s: &str) -> TokenType {
-    let tp = match s {
+    match s {
         "break" => TokenType::BREAK,
         "switch" => TokenType::SWITCH,
         "case" => TokenType::CASE,
@@ -204,7 +204,6 @@ pub fn try_keyword (s: &str) -> TokenType {
         "null" => TokenType::NULL_LITERAL,
         "undefined" => TokenType::UNDEFINED_LITERAL,
         _ => TokenType::Identifier
-    };
-    tp
+    }
 }
 
