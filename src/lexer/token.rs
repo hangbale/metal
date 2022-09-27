@@ -62,7 +62,8 @@ pub enum TokenType {
     AND, // &&
     OR, // ||
     ASSIGN, // =
-    UNHANDLED
+    UNHANDLED,
+    Identifier
 }
 
 
@@ -98,6 +99,7 @@ pub struct Token {
 pub fn is_alphabetic (s: char) -> bool {
     return s.is_alphabetic(); 
 }
+
 pub fn is_numeric (s: &str) -> bool {
     let st = s.to_string();
     let re = Regex::new(Number_Regex);
@@ -170,8 +172,8 @@ pub fn digit_to_char (s: u32) -> Result<char, LexerError> {
     }
     char::try_from(s).map_err(|e| LexerError::InvalidUnicodeSequence)
 }
-pub fn get_type_from_string (s: &str) -> TokenType {
-    match s {
+pub fn try_keyword (s: &str) -> TokenType {
+    let tp = match s {
         "break" => TokenType::BREAK,
         "switch" => TokenType::SWITCH,
         "case" => TokenType::CASE,
@@ -201,7 +203,8 @@ pub fn get_type_from_string (s: &str) -> TokenType {
         "true" => TokenType::TRUE_LITERAL,
         "null" => TokenType::NULL_LITERAL,
         "undefined" => TokenType::UNDEFINED_LITERAL,
-        _ => TokenType::STRING_LITERAL
-    }
+        _ => TokenType::Identifier
+    };
+    tp
 }
 

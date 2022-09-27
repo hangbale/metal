@@ -1,19 +1,14 @@
 use crate::lexer::token::*;
 use crate::input::Code;
 use crate::lexer::error::LexerError;
-#[derive(Debug, PartialEq)]
-enum State {
-    Start,
-    Number,
-    String,
-    Punctuator
-}
+
+
 
 pub struct Lexer<'a> {
-    state: State,
     list: Vec<Token>,
     code: Code<'a>,
     cache: String,
+    current: Option<Token>,
     line: u64,
     column: u64
 }
@@ -21,10 +16,10 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
     pub fn new (code: &'a str) -> Self {
         Self {
-            state: State::Start,
             code: Code::new(code),
             list: vec![],
             cache: String::new(),
+            current: None,
             line: 0,
             column: 0
         }
@@ -35,26 +30,27 @@ impl<'a> Lexer<'a> {
             println!("{:?}", t);
         }
     }
-    pub fn advance (&mut self) {
+    pub fn advance (&mut self) -> Result<Option<Token>, LexerError> {
         while let Some(ch) = self.code.peek() {
             match ch {
                 'a'..='z' | 'A'..='Z' | '_' | '$' => {
-                    println!("in id");
-                    self.handle_identifier();
+                    self.handle_identifier()?
                 }
                 _ => {
+                    self.code.next();
                     break;
                     // Err(LexerError::IllegalCharacter);
                 }
             }
         }
-        println!("{}", self.cache);
-        // Ok()
+        Ok(self.get_token())
     }
-    pub fn handle_identifier (&mut self) -> Result<String, LexerError> {
+    pub fn get_token (&mut self) -> Option<Token> {
+        self.current.take()
+    }
+    pub fn handle_identifier (&mut self) -> Result<(), LexerError>{
         while let Some(c) = &self.code.peek() {
             let nt = *c;
-            println!("{}", nt);
             if !is_identifier_continue(nt) {
                 if nt == '\\' {
                     let v = self.handle_unicode_seq()?;
@@ -66,15 +62,21 @@ impl<'a> Lexer<'a> {
                     break;
                 }
             } else {
-                println!("normal");
                 self.accept(nt);
                 self.code.next();
             }
         }
         Ok(self.token_finishup())
     }
-    pub fn token_finishup (&mut self) -> String {
-        return self.cache.clone();
+    pub fn token_finishup (&mut self) -> () {
+        let kd = try_keyword(&self.cache);
+        self.current = Some(Token {
+            value: self.cache.clone(),
+            category: kd,
+            line: self.code.line_cursor,
+            column: self.code.column_cursor
+        });
+        self.cache = String::new();
     }
     pub fn handle_unicode_seq (&mut self) -> Result<char, LexerError> {
         if let Some(next) = self.code.next() {

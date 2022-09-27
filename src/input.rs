@@ -1,5 +1,13 @@
 use std::str::Chars;
 use std::iter::Peekable;
+
+// line ending
+pub const LF: char = '\u{a}';
+pub const CR: char = '\u{d}';
+
+fn is_line_break (s: char) -> bool {
+    return s == LF || s == CR;
+}
 #[derive(Debug)]
 pub struct Char {
     pub text: String,
@@ -9,28 +17,33 @@ pub struct Char {
 
 #[derive(Debug)]
 pub struct Code<'a> {
-    sources: Chars<'a>,
-    line_cursor: u64,
+    pub line_cursor: u64,
     iter: Peekable<Chars<'a>>,
-    column_cursor: u64,
+    pub column_cursor: u64,
 }
 
 impl<'a> Code<'a> {
     pub fn new (code: &'a str) -> Self {
         Self {
-            sources: code.chars(),
             iter: code.chars().peekable(),
             line_cursor: 1,
             column_cursor: 1,
         }
     }
     pub fn next (&mut self) -> Option<char> {
-        let ch = self.iter.next();
-        match ch {
-            Some(_) => self.column_cursor = self.column_cursor + 1,
+        let nt = self.iter.next();
+        match nt {
+            Some(ch) => {
+                if is_line_break(ch) {
+                    self.line_cursor = self.line_cursor + 1;
+                    self.column_cursor = 1;
+                } else {
+                    self.column_cursor = self.column_cursor + 1
+                }
+            },
             None => {}
         }
-        ch
+        nt
  
     }
     pub fn peek (&mut self) -> Option<char> {
