@@ -49,11 +49,18 @@ impl<'a> Lexer<'a> {
     pub fn set_token (&mut self, tp: TokenType) {
         let v = self.cache.clone();
         let v_len = v.chars().count() as u64;
+        let mut col: u64 = 0;
+        // in string literal, v_len maybe larger than column_cursor
+        if v_len > self.code.column_cursor {
+            col = 0;
+        } else {
+            col = self.code.column_cursor - v_len;
+        }
         self.current = Some(Token {
             value: v,
             category: tp,
             line: self.code.line_cursor,
-            column: self.code.column_cursor - v_len
+            column: col
         });
         self.cache = String::new();
     }
