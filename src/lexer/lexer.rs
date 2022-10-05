@@ -121,7 +121,7 @@ impl<'a> Lexer<'a> {
                 // \xXX, must be followed by 2 hex char
                 'x' => {
                     let mut v: u32 = 0;
-                    for _ in 0..1 {
+                    for _ in 0..2 {
                         let pn = self.code.peek();
                         if let Some(n) = pn {
                             let dtr = hex_char_to_digit(n);
@@ -144,15 +144,21 @@ impl<'a> Lexer<'a> {
                 // \xxx, 0-3 octal number
                 '0'..='7' => {
                     let mut v: u32 = 0;
-                    v = v << 3 | (c as u32 - 48);
+                    let mut tmp: u32 = 0;
+                    tmp = tmp << 3 | (c as u32 - 48);
                     for _ in 0..2 {
                         let pn = self.code.peek();
                         if let Some(n) = pn {
                             match n {
                                 '0'..='7' => {
-                                    self.code.next();
                                     let to_num = n as u32 - 48;
-                                    v = v << 3 | to_num;
+                                    tmp = tmp << 3 | to_num;
+                                    if tmp > 255 {
+                                        self.code.next();
+                                        break;
+                                    } else {
+                                        v = tmp;
+                                    }
                                 },
                                 _ => {
                                     break;
@@ -162,18 +168,14 @@ impl<'a> Lexer<'a> {
                             break;
                         }
                     }
-                    if v > 255 {
-                        return Err(LexerError::InvalidOctalSeq)
-                    } else { 
-                        let c = char::try_from(v)
-                        .map_err(|_e| LexerError::InvalidOctalSeq);
-                        match c {
-                            Ok(cc) => {
-                                self.accept(cc);
-                            }
-                            Err(e) => {
-                                return Err(e);
-                            }
+                    let c = char::try_from(v)
+                    .map_err(|_e| LexerError::InvalidOctalSeq);
+                    match c {
+                        Ok(cc) => {
+                            self.accept(cc);
+                        }
+                        Err(e) => {
+                            return Err(e);
                         }
                     }
                 }
