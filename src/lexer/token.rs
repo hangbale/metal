@@ -87,6 +87,8 @@ const NBSP: char = '\u{a0}';
 // line ending
 pub const LF: char = '\u{a}';
 pub const CR: char = '\u{d}';
+pub const LS: char = '\u{2028}';
+pub const PS: char = '\u{2029}';
 
 #[derive(Debug)]
 pub struct Token {

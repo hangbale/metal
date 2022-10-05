@@ -6,4 +6,6 @@ pub enum LexerError {
     InvalidHexNumber,
     IllegalCharacter,
     UnexpectedKeyword(String),
+    InvalidString,
+    InvalidOctalSeq,
 }

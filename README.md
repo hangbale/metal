@@ -15,5 +15,6 @@ cargo run path_to_js_file.js
 ### hand written lexer
 - [x] a basic lexer
 - [x] functions to check identifier, especially unicode chars and sequence
+- [x] handle string literal
 - [ ] refactoring
-- [ ] handle string literal
+- [ ] opt the get postion method

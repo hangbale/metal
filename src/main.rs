@@ -9,6 +9,9 @@ fn main() {
     let mut lexer_ins = lexer::lexer::Lexer::new(&content);
 
     // use advance method to get next token
-    let t = lexer_ins.advance();
-    println!("{:?}", t);
+    for _ in 0..20 {
+        let t = lexer_ins.advance();
+        println!("{:?}", t);
+    }
+
 }
