@@ -20,6 +20,7 @@ pub struct Code<'a> {
     pub line_cursor: u64,
     iter: Peekable<Chars<'a>>,
     pub column_cursor: u64,
+    pub column_start: u64
 }
 
 impl<'a> Code<'a> {
@@ -28,6 +29,7 @@ impl<'a> Code<'a> {
             iter: code.chars().peekable(),
             line_cursor: 1,
             column_cursor: 1,
+            column_start: 1
         }
     }
     pub fn next (&mut self) -> Option<char> {
@@ -44,7 +46,6 @@ impl<'a> Code<'a> {
             None => {}
         }
         nt
- 
     }
     pub fn peek (&mut self) -> Option<char> {
         let pk = self.iter.peek();
@@ -53,8 +54,5 @@ impl<'a> Code<'a> {
         } else {
             None
         }
-    } 
-    pub fn get_position (&self) -> (u64, u64) {
-        (self.line_cursor, self.column_cursor)
     }
 }

@@ -8,4 +8,5 @@ pub enum LexerError {
     UnexpectedKeyword(String),
     InvalidString,
     InvalidOctalSeq,
+    EOF
 }

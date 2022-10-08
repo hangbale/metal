@@ -21,19 +21,28 @@ impl<'a> Lexer<'a> {
     pub fn advance (&mut self) -> Result<Option<Token>, LexerError> {
         while let Some(ch) = self.code.peek() {
             match ch {
-                '=' => {
-                    self.accept(ch);
-                    self.set_token(TokenType::ASSIGN);
+                LF | CR | PS | LS | TAB | FF | NBSP | SPACE => {
                     self.code.next();
+                    continue;
+                }
+                '=' => {
+                    self.set_one_char_token(ch, TokenType::ASSIGN);
                     break;
                 }
                 '"' | '\'' => {
+                    self.set_column_start();
                     self.code.next();
                     self.string_literal(ch)?;
                     break;
                 }
                 'a'..='z' | 'A'..='Z' | '_' | '$' => {
-                    self.handle_identifier()?
+                    self.set_column_start();
+                    self.handle_identifier()?;
+                    break;
+                }
+                ';' => {
+                    self.set_one_char_token(ch, TokenType::SEMICOLON);
+                    break;
                 }
                 _ => {
                     self.code.next();
@@ -41,26 +50,31 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        Ok(self.get_token())
+        if self.code.peek() == None {
+            return Err(LexerError::EOF);
+        } else {
+            return Ok(self.get_token());
+        }
+    }
+    fn set_column_start(&mut self) {
+        self.code.column_start = self.code.column_cursor;
+    }
+    fn set_one_char_token(&mut self, ch: char, tp: TokenType) {
+        self.accept(ch);
+        self.set_token(tp);
+        self.set_column_start();
+        self.code.next();
     }
     pub fn get_token (&mut self) -> Option<Token> {
         self.current.take()
     }
     pub fn set_token (&mut self, tp: TokenType) {
         let v = self.cache.clone();
-        let v_len = v.chars().count() as u64;
-        let mut col: u64 = 0;
-        // in string literal, v_len maybe larger than column_cursor
-        if v_len > self.code.column_cursor {
-            col = 0;
-        } else {
-            col = self.code.column_cursor - v_len;
-        }
         self.current = Some(Token {
             value: v,
             category: tp,
             line: self.code.line_cursor,
-            column: col
+            column: self.code.column_start
         });
         self.cache = String::new();
     }
@@ -154,9 +168,9 @@ impl<'a> Lexer<'a> {
                                     let to_num = n as u32 - 48;
                                     tmp = tmp << 3 | to_num;
                                     if tmp > 255 {
-                                        self.code.next();
                                         break;
                                     } else {
+                                        self.code.next();
                                         v = tmp;
                                     }
                                 },

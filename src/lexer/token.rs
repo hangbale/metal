@@ -37,6 +37,7 @@ pub enum TokenType {
     NUMBER_LITERAL,
     STRING_LITERAL,
     // punctuator
+    SEMICOLON,
     PERIOD, // .
     LBRACK, // [
     RBRACK, // ]
@@ -82,7 +83,8 @@ pub const ZWNBSP: char = '\u{feff}';
 // whitespace
 pub const TAB: char = '\u{9}';
 pub const SPACE: char = '\u{20}';
-const NBSP: char = '\u{a0}';
+pub const NBSP: char = '\u{a0}';
+pub const FF: char = '\u{c}';
 
 // line ending
 pub const LF: char = '\u{a}';
