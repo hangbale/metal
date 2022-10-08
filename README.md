@@ -1,4 +1,4 @@
-# how to implement a javascript engine
+# write a javascript engine in rust
 
 Because a full implementation is too difficult,
 I start up this is project with some goals that are easy to implement
