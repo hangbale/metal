@@ -10,7 +10,7 @@ but still cover all the important techniques.
 
 ## usage
 ```
-cargo run path_to_js_file.js
+cargo run path_of_js_file.js
 ```
 
 ## task board
