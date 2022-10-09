@@ -1,7 +1,7 @@
 use crate::lexer::token::*;
 use crate::input::Code;
 use crate::lexer::error::LexerError;
-
+use crate::lexer::util::*;
 
 
 pub struct Lexer<'a> {
@@ -44,6 +44,15 @@ impl<'a> Lexer<'a> {
                     self.set_one_char_token(ch, TokenType::SEMICOLON);
                     break;
                 }
+                '0' => {
+                    self.handle_number_start_with_zero()?;
+                    break;
+                }
+                '1'..='9' => {
+                    self.handle_decimal_numeric(false)?;
+                    self.set_token(TokenType::NUMERIC_LITERAL_DECIMAL);
+                    break;
+                }
                 _ => {
                     self.code.next();
                     break;
@@ -70,13 +79,188 @@ impl<'a> Lexer<'a> {
     }
     pub fn set_token (&mut self, tp: TokenType) {
         let v = self.cache.clone();
+        let num = parse_numeric(&v, &tp).ok();
         self.current = Some(Token {
             value: v,
             category: tp,
             line: self.code.line_cursor,
-            column: self.code.column_start
+            column: self.code.column_start,
+            number: num
         });
         self.cache = String::new();
+    }
+    fn handle_decimal_numeric (&mut self, radix_prefix: bool)-> Result<(), LexerError>{
+        let mut has_radix = false;
+        while let Some(nt) = self.code.peek() {
+            match nt {
+                '0'..='9' => {
+                    self.accept(nt);
+                    self.code.next();
+                }
+                '.' => {
+                    if radix_prefix || has_radix {
+                        return Err(LexerError::UnexpectedToken(" . ".to_string()))
+                    } else {
+                        has_radix = true;
+                        self.accept('.');
+                        self.code.next();
+                    }
+                }
+                '_' => {
+                    self.code.next();
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
+    fn handle_number_start_with_zero(&mut self) -> Result<(), LexerError>{
+        self.code.next();
+        match self.code.peek() {
+            Some('O') | Some('o') => {
+                self.code.next();
+                self.octal_number()?;
+                self.set_token(TokenType::NUMERIC_LITERAL_OCTAL);
+            }
+            Some('0'..='9') => {
+                self.octal_or_decimal_number()?;
+            }
+            Some('b') | Some('B') => {
+                self.code.next();
+                self.binary_number()?;
+                self.set_token(TokenType::NUMERIC_LITERAL_BINARY);
+            }
+            Some('x') | Some('X') => {
+                self.code.next();
+                self.hex_number()?;
+                self.set_token(TokenType::NUMERIC_LITERAL_HEX);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+    fn octal_or_decimal_number(&mut self) -> Result<(), LexerError>{
+        let mut is_decimal = false;
+        loop {
+            let pc = self.code.peek();
+            match pc {
+                Some(c) => {
+                    match c {
+                        '0'..='7' => {
+                            self.code.next();
+                            self.accept(c);
+                        }
+                        '8'..='9' => {
+                            self.code.next();
+                            is_decimal = true;
+                            self.accept(c);
+                        }
+                        '_' => {
+                            self.code.next();
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+        self.check_after_numeric()?;
+        if is_decimal {
+            self.set_token(TokenType::NUMERIC_LITERAL_DECIMAL);
+        } else {
+            self.set_token(TokenType::NUMERIC_LITERAL_OCTAL);
+        }
+        Ok(())
+    }
+    fn octal_number(&mut self) -> Result<(), LexerError>{
+        loop {
+            let pc = self.code.peek();
+            match pc {
+                Some(c) => {
+                    match c {
+                        '0'..='7' => {
+                            self.code.next();
+                            self.accept(c);
+                        }
+                        '_' => {
+                            self.code.next();
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+        self.check_after_numeric()
+    }
+    fn binary_number(&mut self) -> Result<(), LexerError>{
+        loop {
+            let pc = self.code.peek();
+            match pc {
+                Some(c) => {
+                    match c {
+                        '0'..='1' => {
+                            self.code.next();
+                            self.accept(c);
+                        }
+                        '_' => {
+                            self.code.next();
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+        self.check_after_numeric()
+    }
+    fn hex_number(&mut self) -> Result<(), LexerError>{
+        loop {
+            let pc = self.code.peek();
+            match pc {
+                Some(c) => {
+                    match c {
+                        '0'..='9' | 'a'..='f' | 'A'..='F' => {
+                            self.code.next();
+                            self.accept(c);
+                        }
+                        '_' => {
+                            self.code.next();
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+        self.check_after_numeric()
+    }
+    fn check_after_numeric(&mut self) -> Result<(), LexerError> {
+        let nc = self.code.peek();
+        if let Some(c) = nc {
+            if is_identifier_start(c) || c.is_digit(10) {
+                return Err(LexerError::UnexpectedToken(c.to_string()));
+            }
+        }
+        Ok(())
     }
     pub fn string_literal (&mut self, start: char) -> Result<(), LexerError> {
         loop {
@@ -256,15 +440,7 @@ impl<'a> Lexer<'a> {
     }
     pub fn token_finishup (&mut self) -> () {
         let kd = try_keyword(&self.cache);
-        let value = self.cache.clone();
-        let v_len = value.chars().count() as u64;
-        self.current = Some(Token {
-            value: value,
-            category: kd,
-            line: self.code.line_cursor,
-            column: self.code.column_cursor - v_len
-        });
-        self.cache = String::new();
+        self.set_token(kd);
     }
     pub fn handle_unicode_seq (&mut self) -> Result<char, LexerError> {
         if let Some(next) = self.code.next() {

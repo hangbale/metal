@@ -34,8 +34,12 @@ pub enum TokenType {
     TRUE_LITERAL,
     NULL_LITERAL,
     UNDEFINED_LITERAL,
-    NUMBER_LITERAL,
+    NUMERIC_LITERAL,
     STRING_LITERAL,
+    NUMERIC_LITERAL_BINARY,
+    NUMERIC_LITERAL_OCTAL,
+    NUMERIC_LITERAL_DECIMAL,
+    NUMERIC_LITERAL_HEX,
     // punctuator
     SEMICOLON,
     PERIOD, // .
@@ -95,9 +99,18 @@ pub const PS: char = '\u{2029}';
 #[derive(Debug)]
 pub struct Token {
     pub value: String,
+    pub number: Option<f64>,
     pub category: TokenType,
     pub line: u64,
     pub column: u64
+}
+
+pub fn is_numeric_token (tp: TokenType) -> bool {
+    match tp {
+        TokenType::NUMERIC_LITERAL_BINARY | TokenType::NUMERIC_LITERAL_DECIMAL |
+        TokenType::NUMERIC_LITERAL_OCTAL | TokenType::NUMERIC_LITERAL_HEX => true,
+        _ => false
+    }
 }
 
 pub fn is_alphabetic (s: char) -> bool {

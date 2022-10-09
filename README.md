@@ -8,6 +8,7 @@ but still cover all the important techniques.
 - buid in rust
 - a subset of javascript grammar
 
+
 ## usage
 ```
 cargo run path_of_js_file.js
@@ -20,5 +21,5 @@ cargo run path_of_js_file.js
 - [x] functions to check identifier, especially unicode chars and sequence
 - [x] handle string literal
 - [x] opt the get postion method
-- [ ] numeric literal
+- [x] numeric literal
 - [ ] refactoring

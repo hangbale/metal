@@ -4,9 +4,12 @@ pub enum LexerError {
     UnicodeOverfow,
     UnicodeSurrogateCodePoint,
     InvalidHexNumber,
+    InvalidOctalNumber,
     IllegalCharacter,
     UnexpectedKeyword(String),
     InvalidString,
     InvalidOctalSeq,
-    EOF
+    EOF,
+    InvalidBinaryNumber,
+    UnexpectedToken(String)
 }
