@@ -29,6 +29,38 @@ impl<'a> Lexer<'a> {
                     self.set_one_char_token(ch, TokenType::ASSIGN);
                     break;
                 }
+                ':' => {
+                    self.set_one_char_token(ch, TokenType::COLON);
+                    break;
+                }
+                '[' => {
+                    self.set_one_char_token(ch, TokenType::LBRACK);
+                    break;
+                }
+                ']' => {
+                    self.set_one_char_token(ch, TokenType::RBRACK);
+                    break;
+                }
+                '(' => {
+                    self.set_one_char_token(ch, TokenType::LPAREN);
+                    break;
+                }
+                ')' => {
+                    self.set_one_char_token(ch, TokenType::RPAREN);
+                    break;
+                }
+                '{' => {
+                    self.set_one_char_token(ch, TokenType::LBRACE);
+                    break;
+                }
+                '}' => {
+                    self.set_one_char_token(ch, TokenType::RBRACE);
+                    break;
+                }
+                ',' => {
+                    self.set_one_char_token(ch, TokenType::COMMA);
+                    break;
+                }
                 '"' | '\'' => {
                     self.set_column_start();
                     self.code.next();
