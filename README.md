@@ -23,3 +23,6 @@ cargo run path_of_js_file.js
 - [x] opt the get postion method
 - [x] numeric literal
 - [ ] refactoring
+
+### hand written parser(top-down)
+- [x] basis of parser and AST
