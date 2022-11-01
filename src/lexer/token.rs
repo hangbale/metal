@@ -1,7 +1,7 @@
 use regex::Regex;
 use unicode_xid::UnicodeXID;
 use crate::lexer::error::LexerError;
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TokenType {
     // keywords
     BREAK,
@@ -103,6 +103,19 @@ pub struct Token {
     pub category: TokenType,
     pub line: u64,
     pub column: u64
+}
+
+impl Token {
+    fn is_ident(&self) -> bool {
+        match self.category {
+            TokenType::Identifier => {
+                return true;
+            }
+            _ => {
+                return false;
+            }
+        }
+    }
 }
 
 pub fn is_numeric_token (tp: TokenType) -> bool {

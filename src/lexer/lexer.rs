@@ -1,24 +1,22 @@
-use crate::lexer::token::*;
+use super::token::*;
 use crate::input::Code;
-use crate::lexer::error::LexerError;
-use crate::lexer::util::*;
+use super::error::LexerError;
+use super::util::*;
 
 
 pub struct Lexer<'a> {
     code: Code<'a>,
-    cache: String,
-    current: Option<Token>
+    cache: String
 }
 
 impl<'a> Lexer<'a> {
     pub fn new (code: &'a str) -> Self {
         Self {
             code: Code::new(code),
-            cache: String::new(),
-            current: None
+            cache: String::new()
         }
     }
-    pub fn advance (&mut self) -> Result<Option<Token>, LexerError> {
+    pub fn advance (&mut self) -> Result<Token, LexerError> {
         while let Some(ch) = self.code.peek() {
             match ch {
                 LF | CR | PS | LS | TAB | FF | NBSP | SPACE => {
@@ -26,64 +24,49 @@ impl<'a> Lexer<'a> {
                     continue;
                 }
                 '=' => {
-                    self.set_one_char_token(ch, TokenType::ASSIGN);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::ASSIGN));
                 }
                 ':' => {
-                    self.set_one_char_token(ch, TokenType::COLON);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::COLON));
                 }
                 '[' => {
-                    self.set_one_char_token(ch, TokenType::LBRACK);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::LBRACK));
                 }
                 ']' => {
-                    self.set_one_char_token(ch, TokenType::RBRACK);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::RBRACK));
                 }
                 '(' => {
-                    self.set_one_char_token(ch, TokenType::LPAREN);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::LPAREN));
                 }
                 ')' => {
-                    self.set_one_char_token(ch, TokenType::RPAREN);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::RPAREN));
                 }
                 '{' => {
-                    self.set_one_char_token(ch, TokenType::LBRACE);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::LBRACE));
                 }
                 '}' => {
-                    self.set_one_char_token(ch, TokenType::RBRACE);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::RBRACE));
                 }
                 ',' => {
-                    self.set_one_char_token(ch, TokenType::COMMA);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::COMMA));
                 }
                 '"' | '\'' => {
                     self.set_column_start();
                     self.code.next();
-                    self.string_literal(ch)?;
-                    break;
+                    return self.string_literal(ch);
                 }
                 'a'..='z' | 'A'..='Z' | '_' | '$' => {
                     self.set_column_start();
-                    self.handle_identifier()?;
-                    break;
+                    return self.handle_identifier();
                 }
                 ';' => {
-                    self.set_one_char_token(ch, TokenType::SEMICOLON);
-                    break;
+                    return Ok(self.set_one_char_token(ch, TokenType::SEMICOLON));
                 }
                 '0' => {
-                    self.handle_number_start_with_zero()?;
-                    break;
+                    return self.handle_number_start_with_zero();
                 }
                 '1'..='9' => {
-                    self.handle_decimal_numeric(false)?;
-                    self.set_token(TokenType::NUMERIC_LITERAL_DECIMAL);
-                    break;
+                    return self.handle_decimal_numeric(false);
                 }
                 _ => {
                     self.code.next();
@@ -91,37 +74,38 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        if self.code.peek() == None {
-            return Err(LexerError::EOF);
-        } else {
-            return Ok(self.get_token());
-        }
+        Err(LexerError::EOF)
     }
     fn set_column_start(&mut self) {
         self.code.column_start = self.code.column_cursor;
     }
-    fn set_one_char_token(&mut self, ch: char, tp: TokenType) {
-        self.accept(ch);
-        self.set_token(tp);
+    fn set_one_char_token(&mut self, ch: char, tp: TokenType) -> Token {
         self.set_column_start();
         self.code.next();
+        Token {
+            value: ch.to_string(),
+            category: tp,
+            line: self.code.line_cursor,
+            column: self.code.column_start,
+            number: None
+        }
     }
-    pub fn get_token (&mut self) -> Option<Token> {
-        self.current.take()
-    }
-    pub fn set_token (&mut self, tp: TokenType) {
+    // pub fn get_token (&mut self) -> Option<Token> {
+    //     self.current.take()
+    // }
+    pub fn set_token (&mut self, tp: TokenType) -> Token {
         let v = self.cache.clone();
         let num = parse_numeric(&v, &tp).ok();
-        self.current = Some(Token {
+        self.cache = String::new();
+        Token {
             value: v,
             category: tp,
             line: self.code.line_cursor,
             column: self.code.column_start,
             number: num
-        });
-        self.cache = String::new();
+        }
     }
-    fn handle_decimal_numeric (&mut self, radix_prefix: bool)-> Result<(), LexerError>{
+    fn handle_decimal_numeric (&mut self, radix_prefix: bool)-> Result<Token, LexerError>{
         let mut has_radix = false;
         while let Some(nt) = self.code.peek() {
             match nt {
@@ -146,34 +130,35 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        Ok(())
+        Ok(self.set_token(TokenType::NUMERIC_LITERAL))
     }
-    fn handle_number_start_with_zero(&mut self) -> Result<(), LexerError>{
+    fn handle_number_start_with_zero(&mut self) -> Result<Token, LexerError>{
         self.code.next();
         match self.code.peek() {
             Some('O') | Some('o') => {
                 self.code.next();
                 self.octal_number()?;
-                self.set_token(TokenType::NUMERIC_LITERAL_OCTAL);
+                return Ok(self.set_token(TokenType::NUMERIC_LITERAL));
             }
             Some('0'..='9') => {
-                self.octal_or_decimal_number()?;
+                return self.octal_or_decimal_number();
             }
             Some('b') | Some('B') => {
                 self.code.next();
                 self.binary_number()?;
-                self.set_token(TokenType::NUMERIC_LITERAL_BINARY);
+                return Ok(self.set_token(TokenType::NUMERIC_LITERAL));
             }
             Some('x') | Some('X') => {
                 self.code.next();
                 self.hex_number()?;
-                self.set_token(TokenType::NUMERIC_LITERAL_HEX);
+                return Ok(self.set_token(TokenType::NUMERIC_LITERAL));
             }
-            _ => {}
+            _ => {
+                Err(LexerError::InvalidNumberSeq)
+            }
         }
-        Ok(())
     }
-    fn octal_or_decimal_number(&mut self) -> Result<(), LexerError>{
+    fn octal_or_decimal_number(&mut self) -> Result<Token, LexerError>{
         let mut is_decimal = false;
         loop {
             let pc = self.code.peek();
@@ -204,11 +189,10 @@ impl<'a> Lexer<'a> {
         }
         self.check_after_numeric()?;
         if is_decimal {
-            self.set_token(TokenType::NUMERIC_LITERAL_DECIMAL);
+            return Ok(self.set_token(TokenType::NUMERIC_LITERAL));
         } else {
-            self.set_token(TokenType::NUMERIC_LITERAL_OCTAL);
+            return Ok(self.set_token(TokenType::NUMERIC_LITERAL));
         }
-        Ok(())
     }
     fn octal_number(&mut self) -> Result<(), LexerError>{
         loop {
@@ -294,7 +278,7 @@ impl<'a> Lexer<'a> {
         }
         Ok(())
     }
-    pub fn string_literal (&mut self, start: char) -> Result<(), LexerError> {
+    pub fn string_literal (&mut self, start: char) -> Result<Token, LexerError> {
         loop {
             let nt = self.code.next();
             match nt {
@@ -303,8 +287,7 @@ impl<'a> Lexer<'a> {
                 }
                 Some(c @ '"') | Some(c @ '\'') => {
                     if c == start {
-                        self.set_token(TokenType::STRING_LITERAL);
-                        break;
+                        return Ok(self.set_token(TokenType::STRING_LITERAL));
                     } else {
                         self.accept(c);
                     }
@@ -318,9 +301,9 @@ impl<'a> Lexer<'a> {
                 None => break
             }
         }
-        Ok(())
+        return Ok(self.set_token(TokenType::STRING_LITERAL));
     }
-    pub fn handle_string_seq (&mut self) -> Result<(), LexerError> {
+    pub fn handle_string_seq (&mut self) -> Result<Token, LexerError> {
         match self.code.next() {
             None => {
                 return Err(LexerError::InvalidString);
@@ -448,9 +431,9 @@ impl<'a> Lexer<'a> {
 
             }
         }
-        Ok(())
+        Ok(self.set_token(TokenType::STRING_LITERAL))
     }
-    pub fn handle_identifier (&mut self) -> Result<(), LexerError>{
+    pub fn handle_identifier (&mut self) -> Result<Token, LexerError>{
         while let Some(c) = &self.code.peek() {
             let nt = *c;
             if !is_identifier_continue(nt) {
@@ -470,9 +453,9 @@ impl<'a> Lexer<'a> {
         }
         Ok(self.token_finishup())
     }
-    pub fn token_finishup (&mut self) -> () {
+    pub fn token_finishup (&mut self) -> Token {
         let kd = try_keyword(&self.cache);
-        self.set_token(kd);
+        return self.set_token(kd);
     }
     pub fn handle_unicode_seq (&mut self) -> Result<char, LexerError> {
         if let Some(next) = self.code.next() {

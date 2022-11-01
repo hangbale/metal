@@ -11,5 +11,6 @@ pub enum LexerError {
     InvalidOctalSeq,
     EOF,
     InvalidBinaryNumber,
+    InvalidNumberSeq,
     UnexpectedToken(String)
 }
