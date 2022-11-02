@@ -51,7 +51,7 @@ pub enum TokenType {
     RBRACE, // }
     COLON, // :
     COMMA, // ,
-    NOT, // !
+    Bang, // !
     INC, // ++
     DEC, // --
     EQ, // ==
@@ -237,3 +237,17 @@ pub fn try_keyword (s: &str) -> TokenType {
     }
 }
 
+pub enum TokenMatcher {
+    Single(TokenType),
+    List(Vec<TokenType>)
+}
+impl From<TokenType> for TokenMatcher {
+    fn from(t: TokenType) -> Self {
+        Self::Single(t)
+    }
+}
+impl From<Vec<TokenType>> for TokenMatcher {
+    fn from(t: Vec<TokenType>) -> Self {
+        Self::List(t)
+    }
+}

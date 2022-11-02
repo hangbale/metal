@@ -1,7 +1,10 @@
+use super::variable::Identifier;
 #[derive(Debug)]
 pub enum Expression {
     Literal(Literal),
-    Bin(BinaryExp)
+    Bin(BinaryExp),
+    Unary(UnaryExpr),
+    Identifier(Identifier)
 }
 
 #[derive(Debug)]
@@ -64,9 +67,22 @@ pub enum BinaryOpt {
     Lt,
     Gt
 }
+
+#[derive(Debug)]
+pub enum UnaryOp {
+    Add,
+    Sub,
+    Bang
+}
+
 #[derive(Debug)]
 pub struct BinaryExp {
     pub operator: BinaryOpt,
     pub left: Box<Expression>,
     pub right: Box<Expression>
+}
+#[derive(Debug)]
+pub struct UnaryExpr {
+    pub operator: UnaryOp,
+    pub argument: Box<Expression>
 }
